@@ -1,0 +1,30 @@
+# PB-09: two buys compete for one 50000 slice. The first by insertion order
+# takes 40000, the second can only take the remaining 10000, and the sum never
+# exceeds what the slice offered (D-11, I-12).
+scenario_id: lp-two-orders-one-slice-v1
+seed: 20261030
+clock: virtual
+fill_trigger_policy: scripted
+initial_quote:
+  symbol: EURUSD
+  bid: '1.08480'
+  ask: '1.08490'
+  bid_available: 80000
+  ask_available: 50000
+  version: 1
+  ttl_ms: 60000
+events:
+  - {at_ms: 0, action: expect_logon}
+  - {at_ms: 10, action: expect_new, cl_ord_id: O1, qty: 40000, side: BUY, limit: '1.08500'}
+  - {at_ms: 10, action: expect_new, cl_ord_id: O2, qty: 40000, side: BUY, limit: '1.08500'}
+  - {at_ms: 20, action: inject_fill, order: O1, qty: 40000, price: '1.08490'}
+  # Only 10000 is left on the slice, so a 40000 fill for O2 must be refused.
+  - {at_ms: 21, action: inject_fill, order: O2, qty: 40000, price: '1.08490', expect_reject: true}
+  - {at_ms: 22, action: inject_fill, order: O2, qty: 10000, price: '1.08490'}
+assert:
+  - 'CumQty(O1) == 40000'
+  - 'CumQty(O2) == 10000'
+  - 'OrdStatus(O1) == FILLED'
+  - 'OrdStatus(O2) == PARTIALLY_FILLED'
+  - 'LeavesQty(O2) == 30000'
+  - 'session_and_business_invariants_hold == true'

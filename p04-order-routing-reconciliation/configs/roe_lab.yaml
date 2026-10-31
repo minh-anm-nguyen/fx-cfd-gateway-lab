@@ -1,0 +1,64 @@
+// This file is the written form of the Rules of Engagement snapshot that
+// Config::lab_default() builds in code (design doc 3.1). It is checked in so a
+// reviewer can diff the ROE across releases, which release gate 23.2 point 8
+// asks for. The loader is intentionally not implemented: a configuration that
+// can be edited without a checksum bump is exactly what OR-B-16 refuses, so the
+// authoritative source stays src/config.cpp until a signed loader exists.
+roe_profile: fix44_lab_v1
+fix_version: FIX.4.4
+roles:
+  p04: initiator_application_client
+  p01: initiator_session_engine
+  p02: acceptor_lp_simulator
+
+identity:
+  sender_comp_id: ROUTER04
+  target_comp_id: LPSIM01
+  session_qualifier: PRIMARY
+  tenants:
+    T1: [ACC1]
+    T2: [ACC2]
+
+supported_commands: [D, F, G]
+capabilities:
+  order_status_request: false      # 35=H stays off until P02 enables it and the
+                                   # integration tests pass (design doc 3.1)
+  pending_cancel_ack: true
+  pending_replace_ack: true
+  trade_history_query: false       # no fill history interface exists yet
+  echo_ord_status_req_id: false    # peer does not echo 790
+
+order_profile:
+  ord_types: [LIMIT]
+  time_in_force: [DAY]
+  allow_side_change_on_replace: false
+  allow_symbol_change_on_replace: false
+  optimistic_chaining: false       # strict pessimistic, one pending per chain
+  tolerated_custom_tags: []        # anything else is a must-understand violation
+
+symbols:
+  EUR/USD: { price_scale: 5, tick: 0.00001, qty_step: 1000, min_qty: 1000 }
+  GBP/USD: { price_scale: 5, tick: 0.00001, qty_step: 1000, min_qty: 1000 }
+  USD/JPY: { price_scale: 3, tick: 0.001,   qty_step: 1000, min_qty: 1000 }
+
+exec_id_scope: lp_namespace_plus_exec_id
+exec_id_zero_policy: status_snapshot_only   # never a business dedup key (R-I08)
+
+chaining:
+  orig_cl_ord_id: last_accepted
+  pending_requests_per_chain: 1
+
+replace:
+  quantity_is: total_intended_chain_quantity
+  below_cum_qty: reject_local
+
+reject_policy:
+  session_reject_is_business_reject: false
+  cancel_reject_ends_order: false
+
+unsupported_in_v1: [TradeCorrect, TradeCancel, Restated]   # quarantine, no math
+
+transport:
+  endpoint_allowlist: [127.0.0.1, localhost, lp-sim]
+  require_tls: false               # loopback lab only
+  redact_tags: [554, 925, 90, 91]

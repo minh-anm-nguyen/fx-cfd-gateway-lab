@@ -1,0 +1,42 @@
+# Recovery and durability configuration.
+#
+# This is the shape given in design doc section 21, with the values the
+# engine will accept. Everything here is a safety floor rather than a tuning
+# knob: validate_config() refuses the configuration outright if any of these
+# is set to something that would make a claim in section 1.2 unprovable, and
+# test_schema_config G23-01 asserts that this file passes.
+#
+# The timeouts ARE lab assumptions and section 21 says so. They should be
+# re-derived from measurements on the target host before any deployment.
+
+storage:
+  pg_version_major: 17
+  require_fsync: true
+  require_full_page_writes: true
+  # Only "on" supports the ACCEPTED_DURABLE definition. remote_write and off
+  # both acknowledge before the flush.
+  require_synchronous_commit: "on"
+  max_transaction_retries: 5
+  statement_timeout_ms: 2000   # lab assumption, not a safe universal constant
+  lock_timeout_ms: 500         # lab assumption
+
+recovery:
+  # JI-24: dispatch starts disabled and is enabled only by the gates.
+  dispatch_default: disabled
+  verify_journal_hashes: true
+  verify_projections: true
+  verify_outbox_receipts: true
+  max_replay_batch_events: 1000
+  on_unknown_lp_outcome: hold_and_reconcile
+  on_data_mismatch: quarantine
+
+outbox:
+  claim_limit: 100
+  # Section 10: without a durable stable-send mapping, retrying an ambiguous
+  # send can issue the same order twice.
+  safe_retry_requires_p01_stable_send: true
+  default_ambiguous_action: unknown
+
+backup:
+  require_restore_drill: true
+  block_unsafe_wal_pruning: true

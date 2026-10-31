@@ -1,0 +1,62 @@
+# CONFIG EXAMPLE ONLY. Every value here is a lab default and must be replaced by
+# what the counterparty agreement actually says (design doc section 13).
+#
+# Unknown keys are errors, not warnings: a typo in a safety relevant setting
+# must never be silently ignored.
+
+[session]
+begin_string = "FIX.4.4"
+sender_comp_id = "TRADER01"
+target_comp_id = "SIMLP01"
+qualifier = "DEV"
+heartbeat_seconds = 30
+# Resetting sequence numbers hides gaps and makes reconciliation unreliable, so
+# all three stay off unless the agreement says otherwise.
+allow_reset_on_logon = false
+allow_reset_on_disconnect = false
+allow_unsolicited_seq_reset = false
+sending_time_tolerance_seconds = 120
+session_schedule = "24x7-lab"
+
+[network]
+host = "127.0.0.1"
+port = 9878
+connect_timeout_ms = 3000
+reconnect_initial_ms = 1000
+reconnect_max_ms = 60000
+reconnect_jitter_percent = 20
+max_frame_bytes = 65536
+max_read_buffer_bytes = 131072
+max_fields_per_frame = 2048
+partial_frame_deadline_ms = 30000
+
+[recovery]
+max_future_messages = 256
+max_future_bytes = 1048576
+resend_chunk_size = 1000
+allow_gapfill_application_messages = false
+gapfill_policy = "accept_and_flag"
+resend_mode = "bounded_range"
+max_resend_cycles = 16
+max_recovery_duration_ms = 120000
+min_resend_request_interval_ms = 250
+test_request_timeout_ms = 30000
+
+[persistence]
+backend = "sqlite"
+database_path = "./state/session.db"
+sqlite_journal_mode = "WAL"
+sqlite_synchronous = "FULL"
+store_busy_timeout_ms = 5000
+allow_weak_durability = false
+create_database_if_missing = false
+
+[limits]
+max_event_queue = 4096
+max_inbox_pending = 10000
+
+[security]
+tls_enabled = false
+redact_secret_fields = true
+max_audit_value_bytes = 256
+username = ""

@@ -1,0 +1,20 @@
+# Fail-closed profile for the chaos runs. Identical business semantics; the
+# difference is that the queue is small enough that saturation is reached
+# quickly and the service-mode ladder is exercised rather than merely present.
+profile: lab-p07-v1-failclosed
+fix_mode: simulator_only
+owner_shards: 1
+spsc_capacity: 256
+pool_slots: 8192
+owner_cpu: auto_from_allowed_cpuset
+telemetry_buffer_per_thread: 1024
+allocation_policy: preallocated_hot_path
+watermarks: {watch_pct: 40, shed_new_pct: 60, stop_pct: 80}
+durability: p06_atomic_store_required
+outbox_send_requires: p06_committed_epoch
+failure_mode: recon_only_on_unknown_commit
+metrics: {clock: monotonic_raw, full_benchmark_samples: true}
+attempt_pinning: false
+commit_mode: synchronous
+persistence_inflight_budget: 1
+sync_on_commit: true

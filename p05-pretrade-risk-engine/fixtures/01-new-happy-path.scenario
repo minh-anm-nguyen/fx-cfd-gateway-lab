@@ -1,0 +1,23 @@
+# G07 — a New order is admitted, dispatched and acknowledged.
+#
+# Asserts the three things an admission must produce together: the hold, the
+# durable intent, and nothing else (RI-01).
+scenario_id RISK-G07-NEW-HAPPY
+seed 1001
+fixture F0_EMPTY
+store memory
+
+step reserve_new account=ACC-A chain=c1 symbol=EURUSD side=BUY qty=100000 price=110000 command_id=n1 expect=ALLOW_COMMITTED
+step assert account=ACC-A symbol=EURUSD effective_buy_remaining=100000 position=0 outbox_count=1
+step assert chain=c1 account=ACC-A reservation_state=COMMITTED
+
+step dispatch command_id=n1 expect=ALLOW_COMMITTED
+step assert chain=c1 account=ACC-A reservation_state=IN_FLIGHT
+
+step event kind=OrderAccepted account=ACC-A chain=c1 event_id=a1 accepted=100000 expect=ALLOW_COMMITTED
+step assert chain=c1 account=ACC-A reservation_state=WORKING
+step assert account=ACC-A symbol=EURUSD effective_buy_remaining=100000 outbox_count=1 all_risk_invariants=true
+
+# The same command again is idempotent: one hold, one intent (RI-02).
+step reserve_new account=ACC-A chain=c1 symbol=EURUSD side=BUY qty=100000 price=110000 command_id=n1 expect=ALLOW_COMMITTED
+step assert account=ACC-A symbol=EURUSD effective_buy_remaining=100000 outbox_count=1

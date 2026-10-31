@@ -1,0 +1,45 @@
+# Build trees.
+#
+# Every component is configured out-of-source, and between them they use a
+# dozen names: `build` for the lab build, plus `build-clean`, `build-ubtrap`,
+# `build-rel`, `build-verify`, `build-cmake` and `cmake-build` for the
+# sanitizer, measured and verification configurations. The glob covers the ones
+# that exist and the ones the next configuration will invent. Together they are
+# most of this tree by size.
+build/
+build-*/
+cmake-build*/
+
+# Compiler and linker output, wherever it lands.
+*.o
+*.obj
+*.a
+*.exe
+*.dll
+*.lib
+*.pdb
+*.ilk
+
+# Runtime state. P01, P02 and P06 each own a SQLite database and P05 an
+# append-only journal; all four are produced by a run and none describes the
+# source. The lock and sidecar files go with them.
+*.db
+*.db-wal
+*.db-shm
+*.db.lock
+*.journal
+var/
+state/
+
+# Test verdicts and benchmark manifests are results, not sources, and a stale
+# one is worse than none: it names a run on a host that no longer exists.
+test-artifacts/
+reports/manifest-*.json
+
+# Editor and OS noise.
+.vscode/*
+!.vscode/settings.json
+.idea/
+*.swp
+Thumbs.db
+.DS_Store

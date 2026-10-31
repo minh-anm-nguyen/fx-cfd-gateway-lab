@@ -1,0 +1,12 @@
+# L-10: W09, a crash after commit before the inbox acknowledgement.
+# The fill survives and the redelivery is a no-op.
+policy strict_v1
+new O1 qty=100000 px=1.08500
+dispatch O1
+ack O1
+crash W09
+fill X1 cl=O1 qty=40000 px=1.08490 cum=40000
+recover
+assert cum=40000 fills=1 violations=0
+drain
+assert cum=40000 fills=1 violations=0

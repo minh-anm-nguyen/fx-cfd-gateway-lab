@@ -1,0 +1,112 @@
+# Reference configuration for the lab profile.
+#
+# This file documents the policy that default_lab_policy() builds in code and
+# that Policy::validate() enforces. The library does not parse YAML: config
+# loading belongs to whatever process embeds it, and every field below has a
+# validated counterpart in include/order_core/policy.hpp, so a bad value is
+# refused before any order is accepted rather than discovered mid-session.
+#
+# These values are a new proposal for this lab. They are not a production
+# configuration and not a transcription of any real counterparty's Rules of
+# Engagement.
+
+order_core:
+  fix_version: "4.4"
+  business_namespace: "FIRM-DEMO:2026-10-30"
+  peer_id: "LP1"
+  mode: "strict_v1"
+  policy_version: 1
+  event_schema_version: 1
+
+  # --- Rules of Engagement switches ---------------------------------------
+  # Each one is a decision the design doc flags as counterparty specific.
+  # Changing any of them changes what the state machine will accept, so the
+  # policy version is pinned per accepted order version and never applied
+  # retroactively.
+  max_pending_mutations_per_chain: 1
+  reject_qty_below_cum_on_replace: true
+  # A replace down to exactly CumQty leaves zero working quantity. v1 treats
+  # that as a cancel expressed as a replace and refuses it (what-if I-05).
+  reject_replace_qty_equal_cum: true
+  # Chaining a replace onto a version that has not been acknowledged.
+  allow_optimistic_chaining: false
+  # ClOrdID comparison is byte exact; no case folding (what-if E-19).
+  normalize_cl_ord_id_case: false
+  # A buy must not fill above its limit, a sell must not fill below it.
+  enforce_limit_price_on_fill: true
+  # 150=G and 150=H have no reversible ledger in v1, so they fail closed.
+  trade_corrections: "quarantine"
+  unknown_exec_type: "quarantine"
+  # A status report may never create a fill (ADR-07). Not settable to true.
+  status_snapshot_policy: "validate_no_synthetic_fill"
+  corrections_engine_v2_enabled: false
+  corrections_schema_migrated: false
+  # Canceled, Expired, Rejected and DoneForDay report zero leaves even when
+  # CumQty never reached OrderQty (invariant I07).
+  terminal_leaves_is_zero: true
+
+  # --- retention ------------------------------------------------------------
+  # Dedup identities must outlive every window in which the counterparty may
+  # resend, and the audit trail must outlive the dedup window, or an incident
+  # cannot be investigated afterwards. validate() refuses a configuration that
+  # breaks either ordering (what-if F-17, P-16, Q-14).
+  dedup_retention_units: 100
+  fix_resend_horizon_units: 50
+  audit_retention_units: 200
+
+  # --- symbols --------------------------------------------------------------
+  # One tick is tick_numerator / tick_denominator. scale_id must be unique
+  # across symbols: two symbols sharing one would let a price accepted under
+  # one be reinterpreted under the other (what-if D-12, P-12).
+  symbol_specs:
+    EURUSD:
+      tick_numerator: 1
+      tick_denominator: 100000   # 0.00001
+      qty_step: 1000
+      min_qty: 1000
+      max_qty: 100000000
+      scale_id: 1
+      price_must_be_positive: true
+    USDJPY:
+      tick_numerator: 1
+      tick_denominator: 1000     # 0.001, deliberately a different scale
+      qty_step: 1000
+      min_qty: 1000
+      max_qty: 100000000
+      scale_id: 2
+      price_must_be_positive: true
+    UNITFX:
+      # Single-unit granularity, used by the bounded model checker where
+      # quantities are one to three.
+      tick_numerator: 1
+      tick_denominator: 100
+      qty_step: 1
+      min_qty: 1
+      max_qty: 1000000
+      scale_id: 3
+      price_must_be_positive: true
+
+  # --- resource ceilings ----------------------------------------------------
+  # Every growing structure has a bound, and exceeding one fails closed rather
+  # than losing correctness quietly (invariant I23).
+  limits:
+    max_chain_count: 100000
+    max_queue_events: 65536
+    max_pending_per_chain: 64
+    max_exec_id_bytes: 128
+    max_cl_ord_id_bytes: 64
+    max_event_payload_bytes: 65536
+    max_text_bytes: 256
+    max_idempotency_entries: 1000000
+    max_accepted_versions: 256
+    max_reconcile_attempts: 5
+    max_quarantine_incidents: 10000
+    max_held_events_per_chain: 16
+
+  # --- scope ----------------------------------------------------------------
+  # The in-memory store satisfies the atomic-commit contract and proves
+  # deterministic replay. It does not prove crash safety: that needs the P06
+  # durable journal with a real transaction, WAL and fsync behind it. Release
+  # gate G3 must not be read as passed without it.
+  safe_recovery_requires_p06: true
+  durability_mode: "in_memory"

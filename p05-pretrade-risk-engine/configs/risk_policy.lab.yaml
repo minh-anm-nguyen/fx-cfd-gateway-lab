@@ -1,0 +1,105 @@
+# P05 lab risk policy (spec section 19.3).
+#
+# EVERY NUMBER HERE IS A LAB FIGURE. It is not a real risk policy, not a
+# capital or loss recommendation, and not derived from any broker account.
+#
+# Two deliberate departures from the example in the spec, which contradicts
+# itself on these two values:
+#   * max_qty_base_units is 200,000 rather than 100,000, so the 150,000-unit
+#     replace used by the section 24.5 scenario is expressible;
+#   * max_order_notional_minor is 15,000,000 rather than 10,000,000, because
+#     100,000 EUR at the lab risk price is about 11,110,000 cents and the two
+#     original numbers could never both be satisfied.
+#
+# Regenerate with:  risk_cli print-policy > configs/risk_policy.lab.yaml
+# Validate with:    risk_cli validate-policy configs/risk_policy.lab.yaml
+risk_policy_version: 1
+mode: NORMAL
+account_mode: NETTING
+order_types: [LIMIT]
+time_in_force: [DAY]
+account_currency: USD
+account_currency_minor_scale: 2
+fx_ttl_ms: 500
+equity_ttl_ms: 1000
+fx_upper_buffer_bps: 50
+fx_pivot_currencies: [USD]
+margin_proxy_rate: "5/100"
+instruments:
+  EURJPY:
+    base_currency: EUR
+    quote_currency: JPY
+    quantity_step_base_units: 1000
+    min_qty_base_units: 1000
+    max_qty_base_units: 200000
+    tick_size: "1/1000"
+    contract_multiplier: "1/1"
+    quote_ttl_ms: 500
+    risk_price_upper_buffer_bps: 100
+    max_price_deviation_bps: 500
+    product_mode: SPOT_CFD
+    enabled: true
+    version: 1
+  EURUSD:
+    base_currency: EUR
+    quote_currency: USD
+    quantity_step_base_units: 1000
+    min_qty_base_units: 1000
+    max_qty_base_units: 200000
+    tick_size: "1/100000"
+    contract_multiplier: "1/1"
+    quote_ttl_ms: 500
+    risk_price_upper_buffer_bps: 100
+    max_price_deviation_bps: 500
+    product_mode: SPOT_CFD
+    enabled: true
+    version: 1
+  GBPUSD:
+    base_currency: GBP
+    quote_currency: USD
+    quantity_step_base_units: 1000
+    min_qty_base_units: 1000
+    max_qty_base_units: 200000
+    tick_size: "1/100000"
+    contract_multiplier: "1/1"
+    quote_ttl_ms: 500
+    risk_price_upper_buffer_bps: 100
+    max_price_deviation_bps: 500
+    product_mode: SPOT_CFD
+    enabled: true
+    version: 1
+accounts:
+  ACC-A:
+    margin_budget_minor: 10000000
+    use_equity_feed: false
+    enabled: true
+  ACC-B:
+    margin_budget_minor: 10000000
+    use_equity_feed: false
+    enabled: true
+  ACC-C:
+    margin_budget_minor: 10000000
+    use_equity_feed: false
+    enabled: true
+limits:
+  max_order_notional_minor: 15000000
+  max_chain_qty_base_units: 200000
+  max_account_symbol_net_minor: 20000000
+  max_account_symbol_gross_minor: 30000000
+  max_account_total_gross_minor: 50000000
+  max_firm_gross_minor: 100000000
+  min_margin_buffer_minor: 500000
+  max_working_orders_per_account: 64
+  max_working_orders_per_account_symbol: 32
+  max_admissions_per_second: 0
+queues:
+  admission_cap: 32768
+  event_cap: 65536
+  recon_cap: 10000
+safety:
+  require_atomic_outbox: true
+  abort_on_stale_data: true
+  allow_market_orders: false
+  allow_reduce_only_new: false
+  auto_release_on_timeout: false
+  max_pending_modify_per_chain: 1

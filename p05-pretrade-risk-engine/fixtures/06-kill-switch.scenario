@@ -1,0 +1,32 @@
+# G16 — the kill switch blocks risk increase while evidence keeps flowing.
+scenario_id RISK-G16-KILL-SWITCH
+seed 1006
+fixture F0_EMPTY
+store memory
+
+step reserve_new account=ACC-A chain=c1 symbol=EURUSD side=BUY qty=50000 price=110000 command_id=n1 expect=ALLOW_COMMITTED
+step dispatch command_id=n1
+step event kind=OrderAccepted account=ACC-A chain=c1 event_id=a1 accepted=50000
+
+step set_mode NO_NEW
+step assert mode=NO_NEW
+step reserve_new account=ACC-A chain=c2 symbol=EURUSD side=BUY qty=1000 price=110000 command_id=n2 expect=DENY_DEFINITIVE reason=KILL_SWITCH_NO_NEW
+
+# Section 17: failing closed must not block recovery.
+step lp_fill account=ACC-A chain=c1 event_id=e1 qty=20000 expect=ALLOW_COMMITTED
+step assert account=ACC-A symbol=EURUSD position=20000 effective_buy_remaining=30000
+step request_cancel account=ACC-A chain=c1 command_id=x1 expect=ALLOW_COMMITTED
+step assert account=ACC-A symbol=EURUSD effective_buy_remaining=30000
+
+# CANCEL_ONLY still accepts the cancel but releases nothing.
+step set_mode CANCEL_ONLY
+step assert account=ACC-A symbol=EURUSD effective_buy_remaining=30000
+
+# RECON_ONLY refuses even a cancel command.
+step set_mode RECON_ONLY
+step request_cancel account=ACC-A chain=c1 command_id=x2 expect=DENY_DEFINITIVE reason=KILL_SWITCH_RECON_ONLY
+step lp_fill account=ACC-A chain=c1 event_id=e2 qty=5000 expect=ALLOW_COMMITTED
+
+step set_mode NORMAL
+step reserve_new account=ACC-A chain=c3 symbol=EURUSD side=BUY qty=1000 price=110000 command_id=n3 expect=ALLOW_COMMITTED
+step assert account=ACC-A symbol=EURUSD all_risk_invariants=true

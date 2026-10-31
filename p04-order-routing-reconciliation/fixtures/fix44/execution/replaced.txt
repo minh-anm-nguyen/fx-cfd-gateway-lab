@@ -1,0 +1,4 @@
+# Replaced. Only now does R-2 become the accepted version
+# SOH is shown below as a vertical bar. The .bin beside this file
+# holds the same fields with real 0x01 separators.
+35=8|37=LP-1|17=EXR-R-2|150=5|39=0|11=R-2|41=O-1|1=ACC1|55=EUR/USD|54=1|38=80000|14=0|151=80000|6=0.00000|

@@ -1,0 +1,38 @@
+# PB-08: a fill lands while a replace is pending. It must report the OLD
+# accepted parameters, and the replace is applied afterwards keeping CumQty and
+# the OrderID (G-13, G-18).
+scenario_id: lp-replace-partial-v1
+seed: 20261030
+clock: virtual
+fill_trigger_policy: scripted
+emit_pending_replace: true
+initial_quote:
+  symbol: EURUSD
+  bid: '1.08480'
+  ask: '1.08490'
+  bid_available: 80000
+  ask_available: 40000
+  version: 1
+  ttl_ms: 60000
+events:
+  - {at_ms: 0, action: expect_logon}
+  - {at_ms: 10, action: expect_new, cl_ord_id: O1, qty: 100000, side: BUY, limit: '1.08500'}
+  - {at_ms: 20, action: inject_fill, order: O1, qty: 40000, price: '1.08490'}
+  # R1 lowers the limit to 1.08470 and raises the quantity to 150000.
+  - {at_ms: 30, action: expect_replace, cl_ord_id: R1, orig_cl_ord_id: O1, qty: 150000, limit: '1.08470'}
+  - {at_ms: 31, action: assert, assert: 'Pending(O1) == PENDING_REPLACE'}
+  # Still 100000 while the replace is pending: the old version is effective.
+  - {at_ms: 31, action: assert, assert: 'OrderQty(O1) == 100000'}
+  - {at_ms: 32, action: inject_quote, symbol: EURUSD, ask: '1.08495', ask_available: 20000, version: 2, ttl_ms: 60000}
+  # 1.08495 is inside the OLD limit of 1.08500 but outside the pending 1.08470,
+  # so accepting it proves the old parameters are the ones in force.
+  - {at_ms: 33, action: inject_fill, order: O1, qty: 20000, price: '1.08495'}
+  - {at_ms: 40, action: finalize_replace, request: R1}
+assert:
+  - 'CumQty(O1) == 60000'
+  - 'OrderQty(R1) == 150000'
+  - 'LeavesQty(R1) == 90000'
+  - 'OrdStatus(R1) == PARTIALLY_FILLED'
+  - 'CurrentClOrdID(R1) == R1'
+  - 'count_distinct_fills(R1) == 2'
+  - 'session_and_business_invariants_hold == true'

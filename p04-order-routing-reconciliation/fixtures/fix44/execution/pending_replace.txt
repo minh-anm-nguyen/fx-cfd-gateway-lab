@@ -1,0 +1,4 @@
+# Pending Replace. The proposed price and size are not active yet
+# SOH is shown below as a vertical bar. The .bin beside this file
+# holds the same fields with real 0x01 separators.
+35=8|37=LP-1|17=EXPR-R-2|150=E|39=E|11=R-2|41=O-1|1=ACC1|55=EUR/USD|54=1|38=100000|14=0|151=100000|6=0.00000|

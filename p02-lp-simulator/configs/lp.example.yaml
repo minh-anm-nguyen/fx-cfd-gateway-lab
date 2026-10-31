@@ -1,0 +1,47 @@
+# LP simulator configuration (design doc 14.1).
+#
+# This is a LAB profile, not a bilateral production contract. Every value here
+# is a documented assumption that a real Rules of Engagement would replace.
+simulator:
+  mode: conformant
+  instance_id: lp-lab-1
+  listen: 127.0.0.1:9898
+  fix_version: FIX.4.4
+  sender_comp_id: SIMLP01
+  target_comp_id: TRADER01
+  heartbeat_seconds: 30
+  # scripted: a trade happens only when a scenario injects one. Never enable
+  # this together with auto matching (design doc 8.1).
+  fill_trigger_policy: scripted
+  session_reset_policy: coordinated_only
+  business_day_timezone: UTC
+  max_outstanding_orders: 100000
+  max_pending_outbox: 100000
+  max_inbox: 10000
+  # Wire corruption is a loopback-only capability; startup fails if this is set
+  # with a non-loopback bind (L-05, L-06).
+  allow_unsafe_wire_faults: false
+  emit_pending_cancel: false
+  emit_pending_replace: false
+  require_credentials: false
+  store:
+    driver: sqlite
+    path: ./var/lp.db
+    wal: true
+    synchronous: FULL
+  symbols:
+    EURUSD:
+      tick_size: '0.00001'
+      lot_step_base_units: 1000
+      allowed_order_types: [LIMIT]
+      allowed_tif: [DAY]
+      quote_stale_after_ms: 2000
+    GBPUSD:
+      tick_size: '0.00001'
+      lot_step_base_units: 1000
+      allowed_order_types: [LIMIT]
+      allowed_tif: [DAY]
+      quote_stale_after_ms: 2000
+  fault_limits:
+    max_scheduled_events: 100000
+    max_repeats: 10

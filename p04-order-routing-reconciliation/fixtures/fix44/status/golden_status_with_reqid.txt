@@ -1,0 +1,4 @@
+# OrderStatusRequest with 790, only when the peer echoes it
+# SOH is shown below as a vertical bar. The .bin beside this file
+# holds the same fields with real 0x01 separators.
+35=H|11=O-1|1=ACC1|55=EUR/USD|54=1|790=rc-1-q1|

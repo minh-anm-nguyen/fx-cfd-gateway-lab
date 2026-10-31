@@ -1,0 +1,17 @@
+# Deliberately invalid, used by the config tests. Every line below breaks a rule
+# doc 20 states, and the parser must reject the profile rather than fall back to
+# a default: a typo that silently defaults makes a run measure something other
+# than what its profile says.
+profile: lab-p07-invalid
+fix_mode: live_lp
+owner_shards: 4
+spsc_capacity: 1000
+pool_slots: 16
+telemetry_buffer_per_thread: 100
+allocation_policy: whatever
+watermarks: {watch_pct: 90, shed_new_pct: 60, stop_pct: 95}
+durability: best_effort
+outbox_send_requires: nothing
+failure_mode: retry_on_unknown
+metrics: {clock: wall_clock, full_benchmark_samples: false}
+unknown_key_that_should_fail: 1

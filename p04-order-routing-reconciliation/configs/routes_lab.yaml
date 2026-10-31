@@ -1,0 +1,73 @@
+# The route table in written form. Like roe_lab.yaml this is checked in so a
+# reviewer can diff it across releases; the authoritative source is
+# Config::lab_default() in src/config.cpp, because a route table that can be
+# edited without its checksum being recomputed is exactly what OR-B-16 refuses
+# to start against.
+#
+# Design doc 8.2: one account has exactly one active route. There is no smart
+# order routing and no failover. Two active routes for one account at equal
+# priority is a configuration error, not a tie to be broken (OR-B-03), and a
+# route whose CompIDs belong to a different peer is refused outright (OR-B-06).
+
+route_config_version: 1
+
+routes:
+  - account: ACC1
+    lp: LP_SIM_01
+    sender_comp_id: ROUTER04
+    target_comp_id: LPSIM01
+    session_qualifier: PRIMARY
+    endpoint: 127.0.0.1:19004
+    active: true
+    priority: 0
+
+  - account: ACC2
+    lp: LP_SIM_01
+    sender_comp_id: ROUTER04
+    target_comp_id: LPSIM01
+    session_qualifier: PRIMARY
+    endpoint: 127.0.0.1:19004
+    active: true
+    priority: 0
+
+# Scheduling weights across chains (design doc 16.1). Priority never overrides
+# per-chain ordering: a cancel goes ahead of a new order from another chain, not
+# ahead of an earlier request on its own chain.
+scheduling:
+  credit_cancel: 4
+  credit_recon: 2
+  credit_replace: 1
+  credit_new: 1
+
+# Bounded resources. Every one of these is enforced, and exceeding it produces a
+# typed refusal rather than growth (R-I19). Section P lowers these in-test so the
+# same overflow paths run quickly.
+limits:
+  global_command_queue: 65536
+  per_chain_mailbox: 128
+  orphan_quota: 10000
+  status_queries_in_flight: 100
+  admission_rate_per_account_per_sec: 500
+  max_payload_bytes: 1048576
+  max_field_bytes: 256
+  max_fields_per_message: 128
+  log_rate_limit_per_reason: 100
+
+# Reconciliation budget (design doc 14.3). Durations are measured on the
+# monotonic clock, never on wall time (R-I23).
+reconciliation:
+  ack_timeout: 1s
+  initial_backoff: 1s          # then 2s, 4s
+  max_probes: 3
+  risk_verdict_ttl: 2s
+  cancel_transport_ttl: 30s
+
+# Which process owns what (design doc 5.1). Listed here because a route change
+# that crossed one of these lines would be a design error, not a config change.
+ownership:
+  fix_session_sequences_and_resend: P01
+  lp_book_and_execution_reports: P02
+  order_status_and_fill_ledger: P03
+  command_identity_routing_outbox_audit_recon: P04
+  cross_order_exposure: P05
+  atomic_journal_and_dedup: P06

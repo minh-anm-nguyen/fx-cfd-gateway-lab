@@ -1,0 +1,4 @@
+# ExecType 1, a FIX 4.2 partial fill code that does not exist in 4.4
+# SOH is shown below as a vertical bar. The .bin beside this file
+# holds the same fields with real 0x01 separators.
+35=8|37=LP-1|17=EX-1|150=1|39=1|11=O-1|1=ACC1|55=EUR/USD|54=1|38=100000|32=40000|31=1.08500|14=40000|151=60000|6=1.08500|

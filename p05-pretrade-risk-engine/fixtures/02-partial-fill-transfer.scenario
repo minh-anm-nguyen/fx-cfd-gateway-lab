@@ -1,0 +1,23 @@
+# G09 — a partial fill transfers quantity without changing the envelope.
+#
+# The numbers are the section 10.2 worked example: P + B is invariant across
+# the fill, so no budget appears from the transfer alone (RI-07).
+scenario_id RISK-G09-PARTIAL-FILL
+seed 1002
+fixture F0_EMPTY
+store memory
+
+step reserve_new account=ACC-A chain=c1 symbol=EURUSD side=BUY qty=100000 price=110000 command_id=n1 expect=ALLOW_COMMITTED
+step dispatch command_id=n1
+step event kind=OrderAccepted account=ACC-A chain=c1 event_id=a1 accepted=100000
+
+step lp_fill account=ACC-A chain=c1 event_id=e1 qty=40000 expect=ALLOW_COMMITTED
+step assert account=ACC-A symbol=EURUSD position=40000 effective_buy_remaining=60000
+step assert chain=c1 account=ACC-A confirmed_cum_qty=40000
+
+step lp_fill account=ACC-A chain=c1 event_id=e2 qty=25000 expect=ALLOW_COMMITTED
+step assert account=ACC-A symbol=EURUSD position=65000 effective_buy_remaining=35000
+
+# A redelivery of the same execution is a no-op (RI-03).
+step event kind=AppliedFill account=ACC-A chain=c1 event_id=e2 side=BUY fill=25000 cum=65000 expect=ALLOW_COMMITTED reason=DUPLICATE_EVENT
+step assert account=ACC-A symbol=EURUSD position=65000 effective_buy_remaining=35000 all_risk_invariants=true

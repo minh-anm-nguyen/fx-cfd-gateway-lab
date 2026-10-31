@@ -1,0 +1,18 @@
+# G03 / F8 — stale reference data denies risk increase and keeps the hold.
+scenario_id RISK-G03-STALE-QUOTE
+seed 1005
+fixture F0_EMPTY
+store memory
+
+step reserve_new account=ACC-A chain=c1 symbol=EURUSD side=BUY qty=50000 price=110000 command_id=n1 expect=ALLOW_COMMITTED
+step assert account=ACC-A symbol=EURUSD effective_buy_remaining=50000
+
+# Past every TTL, with no republish.
+step advance_ms 2000
+step reserve_new account=ACC-A chain=c2 symbol=EURUSD side=BUY qty=1000 price=110000 command_id=n2 expect=DENY_DEFINITIVE reason=QUOTE_STALE
+step assert account=ACC-A symbol=EURUSD effective_buy_remaining=50000 outbox_count=1
+
+# Fresh data reopens admission.
+step publish_market
+step reserve_new account=ACC-A chain=c3 symbol=EURUSD side=BUY qty=1000 price=110000 command_id=n3 expect=ALLOW_COMMITTED
+step assert account=ACC-A symbol=EURUSD effective_buy_remaining=51000 outbox_count=2 all_risk_invariants=true

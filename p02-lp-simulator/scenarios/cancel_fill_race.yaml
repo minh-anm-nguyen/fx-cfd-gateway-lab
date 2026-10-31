@@ -1,0 +1,32 @@
+# PB-06 PASS A: the 20k fill commits before the cancel finalises, so CumQty
+# reaches 60000 and the order is then cancelled with LeavesQty zero.
+# This is the worked example from design doc 14.2.
+scenario_id: lp-cancel-fill-race-v1
+seed: 20261030
+clock: virtual
+fill_trigger_policy: scripted
+emit_pending_cancel: true
+initial_quote:
+  symbol: EURUSD
+  bid: '1.08480'
+  ask: '1.08490'
+  bid_available: 80000
+  ask_available: 40000
+  version: 1
+  ttl_ms: 60000
+events:
+  - {at_ms: 0, action: expect_logon}
+  - {at_ms: 10, action: expect_new, cl_ord_id: O1, qty: 100000, side: BUY, limit: '1.08500'}
+  - {at_ms: 20, action: inject_fill, order: O1, qty: 40000, price: '1.08490'}
+  - {at_ms: 30, action: expect_cancel, cl_ord_id: C1, orig_cl_ord_id: O1}
+  - {at_ms: 31, action: assert, assert: 'Pending(O1) == PENDING_CANCEL'}
+  - {at_ms: 31, action: inject_quote, symbol: EURUSD, ask: '1.08495', ask_available: 20000, version: 2, ttl_ms: 60000}
+  # Due at 32, before the cancel finalises at 35: the fill wins.
+  - {at_ms: 32, action: inject_fill, order: O1, qty: 20000, price: '1.08495'}
+  - {at_ms: 35, action: finalize_cancel, request: C1}
+assert:
+  - 'CumQty(O1) == 60000'
+  - 'LeavesQty(O1) == 0'
+  - 'OrdStatus(O1) == CANCELED'
+  - 'count_distinct_fills(O1) == 2'
+  - 'session_and_business_invariants_hold == true'

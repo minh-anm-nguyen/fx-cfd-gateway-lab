@@ -1,0 +1,245 @@
+#!/usr/bin/env python3
+"""Aggregate suite artifacts into the P06 test report.
+
+Every suite writes one JSON file with a verdict per scenario. This turns
+those files into a single Markdown report and exits non-zero when a P0
+scenario failed, which is the acceptance condition in design doc section
+27: 100 percent of P0 specifications mapped to executable checks and
+passed in the declared lab topology.
+
+BLOCKED is a real verdict, not a pass. It means the scenario could not run
+here and the reason is recorded, so a reader can judge the gap instead of
+guessing at it. A release gate carried by blocked evidence is weaker than
+one carried by executed evidence, and the report says which is which.
+"""
+
+import argparse
+import glob
+import json
+import os
+import platform
+import subprocess
+import sys
+from collections import Counter
+from datetime import datetime, timezone
+
+# FAIL always dominates. Otherwise a build that actually RAN the scenario
+# supersedes one that could not: BLOCKED means "not runnable in that
+# build", not "not runnable at all".
+PRECEDENCE = {"FAIL": 0, "PASS": 1, "BLOCKED": 2, "NOT_RUN": 3}
+
+# Release gates from design doc section 27. Each owns a set of scenario id
+# prefixes; a gate passes when nothing assigned to it failed.
+GATES = [
+    ("A", "Atomicity",
+     ("G01-", "G02-", "G05-", "W0", "W1", "PB-01", "PB-02", "PB-03", "HASH-", "G12-")),
+    ("B", "Replay and snapshots",
+     ("G11-", "PROP-03", "PROP-04", "PB-12", "PB-24", "PB-25", "G24-05")),
+    ("C", "FIX boundary",
+     ("G03-", "G04-", "G07-", "W2", "PB-04", "PB-05", "PB-06", "PB-07", "PB-09",
+      "PB-10", "PB-11", "PB-29")),
+    ("D", "Risk and business ledger",
+     ("G08-", "G09-", "G10-", "PROP-01", "PROP-02", "PROP-05", "PB-15", "PB-16",
+      "PB-17", "PB-18", "PB-19")),
+    ("E", "Fencing and high availability",
+     ("G14-", "HA-", "G17-", "PB-13", "PB-14", "PB-35")),
+    ("F", "Backup and restore",
+     ("BK-", "G16-", "PB-20", "PB-23", "PB-36")),
+    ("G", "Security and tenancy",
+     ("SEC-", "G21-", "PB-32")),
+    ("H", "Stress and chaos",
+     ("G13-", "G20-", "G24-", "PB-27", "PB-34", "G15-", "PB-21", "PB-22")),
+    ("I", "Operations",
+     ("OPS-", "G19-", "G22-", "G18-", "G23-", "PB-28", "PB-30", "PB-31", "PB-33")),
+]
+
+
+def gate_rows(cases):
+    rows = []
+    for name, title, prefixes in GATES:
+        matched = [c for c in cases
+                   if any(c.get("id", "").startswith(p) for p in prefixes)]
+        counts = Counter(c.get("verdict", "?") for c in matched)
+        failed = counts["FAIL"]
+        status = "FAIL" if failed else "PASS"
+        rows.append((name, title, status, counts["PASS"], failed, counts["BLOCKED"],
+                     len(matched)))
+    return rows
+
+
+def load(artifact_dirs):
+    """Merge every artifact, keeping the strongest verdict per scenario id."""
+    best = {}
+    suites = {}
+    for d in artifact_dirs:
+        for path in sorted(glob.glob(os.path.join(d, "*.json"))):
+            try:
+                with open(path, encoding="utf-8") as f:
+                    doc = json.load(f)
+            except (OSError, json.JSONDecodeError) as exc:
+                print(f"warning: cannot read {path}: {exc}", file=sys.stderr)
+                continue
+            suite = doc.get("suite", os.path.basename(path))
+            for case in doc.get("cases", []):
+                cid = case.get("id", "")
+                case = dict(case)
+                case["suite"] = suite
+                suites.setdefault(suite, []).append(case)
+                prior = best.get(cid)
+                if prior is None or (PRECEDENCE.get(case.get("verdict"), 9) <
+                                     PRECEDENCE.get(prior.get("verdict"), 9)):
+                    best[cid] = case
+    return best, suites
+
+
+def revision():
+    try:
+        out = subprocess.run(["git", "rev-parse", "--short", "HEAD"],
+                             capture_output=True, text=True, timeout=5)
+        if out.returncode == 0 and out.stdout.strip():
+            return out.stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        pass
+    return "not a git repository"
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--artifacts", nargs="+", default=["build/test-artifacts"])
+    ap.add_argument("--out", default="docs/P06_TEST_REPORT.md")
+    args = ap.parse_args()
+
+    best, suites = load(args.artifacts)
+    cases = sorted(best.values(), key=lambda c: c.get("id", ""))
+    if not cases:
+        print("no artifacts found; run the suites first", file=sys.stderr)
+        return 2
+
+    by_priority = {}
+    for c in cases:
+        by_priority.setdefault(c.get("priority", "?"), Counter())[c.get("verdict", "?")] += 1
+
+    p0 = by_priority.get("P0", Counter())
+    any_fail = any(c.get("verdict") == "FAIL" for c in cases)
+
+    lines = []
+    w = lines.append
+    w("# Project 06 test report")
+    w("")
+    w("Generated by `scripts/report.py` from the per-suite artifacts in")
+    w("`" + "`, `".join(args.artifacts) + "`. Each row is one scenario from the what-if")
+    w("matrix in `Durable_Journaling_Recovery_System_Design.md` section 24, one of the")
+    w("24 crash windows in section 15, or one of the playbooks in section 25.")
+    w("")
+    w("| field | value |")
+    w("|---|---|")
+    w(f"| generated (UTC) | {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')} |")
+    w(f"| host | {platform.system()} {platform.release()} ({platform.machine()}) |")
+    w(f"| python | {platform.python_version()} |")
+    w(f"| revision | {revision()} |")
+    w(f"| artifact sources | {', '.join(args.artifacts)} |")
+    w("| storage backend | SQLite, journal_mode=WAL, synchronous=FULL |")
+    w("")
+    w("## Summary")
+    w("")
+    w("| priority | PASS | FAIL | BLOCKED | NOT_RUN | total |")
+    w("|---|---:|---:|---:|---:|---:|")
+    total = Counter()
+    for prio in sorted(by_priority):
+        c = by_priority[prio]
+        total.update(c)
+        w(f"| {prio} | {c['PASS']} | {c['FAIL']} | {c['BLOCKED']} | {c['NOT_RUN']} | "
+          f"{sum(c.values())} |")
+    w(f"| **all** | **{total['PASS']}** | **{total['FAIL']}** | **{total['BLOCKED']}** | "
+      f"**{total['NOT_RUN']}** | **{sum(total.values())}** |")
+    w("")
+    w(f"**Acceptance condition (100 percent of executed P0 passing): "
+      f"{'PASS' if p0['FAIL'] == 0 else 'FAIL'}**")
+    w("")
+    w("## Release gates")
+    w("")
+    w("From design doc section 27. A gate passes when nothing assigned to it failed.")
+    w("Blocked evidence is counted separately on purpose: a gate carried by blocked")
+    w("scenarios is weaker than one carried by executed ones, and the reader should be")
+    w("able to see which is which.")
+    w("")
+    w("| gate | scope | status | PASS | FAIL | BLOCKED | scenarios |")
+    w("|---|---|---|---:|---:|---:|---:|")
+    for name, title, status, npass, nfail, nblock, ntotal in gate_rows(cases):
+        w(f"| {name} | {title} | **{status}** | {npass} | {nfail} | {nblock} | {ntotal} |")
+    w("")
+
+    blocked = [c for c in cases if c.get("verdict") == "BLOCKED"]
+    w("## Blocked scenarios and why")
+    w("")
+    w("These did not run here. The reason is part of the evidence: a blocked scenario")
+    w("is an admitted gap, never a silent pass. Most of them need PostgreSQL, a second")
+    w("node or real hardware, none of which this lab has.")
+    w("")
+    if blocked:
+        w("| id | priority | scenario | reason |")
+        w("|---|---|---|---|")
+        for c in blocked:
+            detail = (c.get("detail") or "").replace("|", "\\|")
+            title = (c.get("title") or "").replace("|", "\\|")
+            w(f"| {c.get('id')} | {c.get('priority')} | {title} | {detail} |")
+    else:
+        w("None.")
+    w("")
+
+    failed = [c for c in cases if c.get("verdict") == "FAIL"]
+    if failed:
+        w("## Failures")
+        w("")
+        w("| id | priority | scenario | detail |")
+        w("|---|---|---|---|")
+        for c in failed:
+            detail = (c.get("detail") or "").replace("|", "\\|")
+            title = (c.get("title") or "").replace("|", "\\|")
+            w(f"| {c.get('id')} | {c.get('priority')} | {title} | {detail} |")
+        w("")
+
+    w("## Suites")
+    w("")
+    w("| suite | PASS | FAIL | BLOCKED | seconds |")
+    w("|---|---:|---:|---:|---:|")
+    for suite in sorted(suites):
+        c = Counter(x.get("verdict", "?") for x in suites[suite])
+        secs = sum(float(x.get("seconds", 0.0)) for x in suites[suite])
+        w(f"| {suite} | {c['PASS']} | {c['FAIL']} | {c['BLOCKED']} | {secs:.1f} |")
+    w("")
+
+    w("## Every scenario")
+    w("")
+    w("| id | priority | verdict | scenario |")
+    w("|---|---|---|---|")
+    for c in cases:
+        title = (c.get("title") or "").replace("|", "\\|")
+        w(f"| {c.get('id')} | {c.get('priority')} | {c.get('verdict')} | {title} |")
+    w("")
+    w("## What this report does not establish")
+    w("")
+    w("Design doc section 30 asks for this to be stated rather than left implicit.")
+    w("")
+    w("- The runnable backend here is SQLite, not the PostgreSQL 17 the design targets.")
+    w("  `migrations/0001_core.sql` carries the PostgreSQL schema, and the store logic is")
+    w("  written against an engine-neutral interface, but no scenario in this report was")
+    w("  executed against PostgreSQL.")
+    w("- No replica, no WAL archive and no point-in-time recovery were exercised. Every")
+    w("  scenario that needs them is BLOCKED above.")
+    w("- A process terminated without unwinding is not a power cut. Durability past the")
+    w("  fsync contract needs hardware whose write cache is under test control.")
+    w("- Zero failures in N trials is not proof. These results describe this lab on this")
+    w("  host, and nothing about a broker's real Rules of Engagement.")
+
+    os.makedirs(os.path.dirname(args.out) or ".", exist_ok=True)
+    with open(args.out, "w", encoding="utf-8", newline="\n") as f:
+        f.write("\n".join(lines) + "\n")
+
+    print(f"wrote {args.out}: {total['PASS']} passed, {total['FAIL']} failed, "
+          f"{total['BLOCKED']} blocked")
+    return 1 if any_fail else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -1,0 +1,8 @@
+# C-06: an overfill is quarantined and the ledger is preserved.
+policy strict_v1
+new O1 qty=100000 px=1.08500
+dispatch O1
+ack O1
+fill X1 cl=O1 qty=40000 px=1.08490 cum=40000
+fill X2 cl=O1 qty=70000 px=1.08490
+assert lifecycle=QUARANTINED cum=40000 fills=1 quarantined=yes violations=0

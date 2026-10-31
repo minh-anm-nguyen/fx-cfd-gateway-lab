@@ -1,0 +1,35 @@
+# G10 / PB-15 — a cancel request releases nothing, and a fill can still land.
+#
+# Section 23.3 row 1: accepted 100k with 40k filled leaves 60k held while the
+# cancel is pending, and only a confirmed terminal report takes it to zero.
+scenario_id RISK-G10-PENDING-CANCEL
+seed 1003
+fixture F0_EMPTY
+store memory
+
+step reserve_new account=ACC-A chain=c1 symbol=EURUSD side=BUY qty=100000 price=110000 command_id=n1 expect=ALLOW_COMMITTED
+step dispatch command_id=n1
+step event kind=OrderAccepted account=ACC-A chain=c1 event_id=a1 accepted=100000
+step lp_fill account=ACC-A chain=c1 event_id=e1 qty=40000
+
+step request_cancel account=ACC-A chain=c1 command_id=x1 expect=ALLOW_COMMITTED
+step assert account=ACC-A symbol=EURUSD effective_buy_remaining=60000
+
+# RI-26: time passing is not evidence.
+step advance_ms 60000
+step publish_market
+step assert account=ACC-A symbol=EURUSD effective_buy_remaining=60000
+
+# A fill arrives before the cancel is confirmed.
+step lp_fill account=ACC-A chain=c1 event_id=e2 qty=10000 expect=ALLOW_COMMITTED
+step assert account=ACC-A symbol=EURUSD position=50000 effective_buy_remaining=50000
+
+# A cancel reject leaves the order working.
+step event kind=CancelRejected account=ACC-A chain=c1 event_id=cr1 expect=ALLOW_COMMITTED
+step assert account=ACC-A symbol=EURUSD effective_buy_remaining=50000
+
+# Only the confirmed terminal report releases the unfilled part.
+step request_cancel account=ACC-A chain=c1 command_id=x2 expect=ALLOW_COMMITTED
+step event kind=CancelAccepted account=ACC-A chain=c1 event_id=cx1 cum=50000 expect=ALLOW_COMMITTED
+step assert chain=c1 account=ACC-A reservation_state=FINAL
+step assert account=ACC-A symbol=EURUSD effective_buy_remaining=0 position=50000 all_risk_invariants=true

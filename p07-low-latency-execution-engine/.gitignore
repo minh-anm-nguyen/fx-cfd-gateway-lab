@@ -1,0 +1,19 @@
+# Build trees. The project is configured out-of-source; `build` is the lab
+# build (failpoints on) and `build-rel` the measured one (ADR-08).
+build/
+build-rel/
+build-*/
+
+# Suite artifacts. ctest writes them to build/test-artifacts/; running a suite
+# executable directly without --artifact= drops them here instead, because that
+# is the harness default.
+test-artifacts/
+
+# Per-run benchmark manifests. The release-gate report is kept, the individual
+# run manifests are not: they name a run_id that only exists on the host that
+# produced them.
+reports/manifest-*.json
+
+# Journals a crash or differential case left behind if it was interrupted
+# before its cleanup.
+*.bin

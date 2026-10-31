@@ -1,0 +1,13 @@
+# I-20: CumQty accumulates across three accepted versions.
+policy strict_v1
+new O1 qty=100000 px=1.08500
+dispatch O1
+ack O1
+fill X1 cl=O1 qty=40000 px=1.08490 cum=40000
+replace R1 orig=O1 qty=150000
+report replaced R1 orig=O1 qty=150000 cum=40000
+fill X2 cl=R1 qty=60000 px=1.08495 cum=100000
+replace R2 orig=R1 qty=200000
+report replaced R2 orig=R1 qty=200000 cum=100000
+fill X3 cl=R2 qty=50000 px=1.08499 cum=150000
+assert lifecycle=PART_FILLED accepted=R2 qty=200000 cum=150000 leaves=50000 fills=3 versions=3 violations=0

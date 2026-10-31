@@ -1,0 +1,25 @@
+# Same profile with the two-step cancel and replace forms enabled, so the
+# pending-versus-fill races (F-09, F-10, G-13, G-14) can be scripted.
+simulator:
+  mode: conformant
+  instance_id: lp-lab-pending
+  listen: 127.0.0.1:9899
+  sender_comp_id: SIMLP01
+  target_comp_id: TRADER01
+  heartbeat_seconds: 30
+  fill_trigger_policy: scripted
+  session_reset_policy: coordinated_only
+  emit_pending_cancel: true
+  emit_pending_replace: true
+  store:
+    driver: sqlite
+    path: ./var/lp-pending.db
+    wal: true
+    synchronous: FULL
+  symbols:
+    EURUSD:
+      tick_size: '0.00001'
+      lot_step_base_units: 1000
+      allowed_order_types: [LIMIT]
+      allowed_tif: [DAY]
+      quote_stale_after_ms: 2000

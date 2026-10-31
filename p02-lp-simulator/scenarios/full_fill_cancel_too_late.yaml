@@ -1,0 +1,30 @@
+# PB-07: the remaining quantity fills before the cancel finalises. The cancel is
+# refused as too late with 35=9, and NO Canceled report follows the Filled one
+# (F-10).
+scenario_id: lp-cancel-too-late-v1
+seed: 20261030
+clock: virtual
+fill_trigger_policy: scripted
+emit_pending_cancel: true
+initial_quote:
+  symbol: EURUSD
+  bid: '1.08480'
+  ask: '1.08490'
+  bid_available: 80000
+  ask_available: 40000
+  version: 1
+  ttl_ms: 60000
+events:
+  - {at_ms: 0, action: expect_logon}
+  - {at_ms: 10, action: expect_new, cl_ord_id: O1, qty: 100000, side: BUY, limit: '1.08500'}
+  - {at_ms: 20, action: inject_fill, order: O1, qty: 40000, price: '1.08490'}
+  - {at_ms: 30, action: expect_cancel, cl_ord_id: C1, orig_cl_ord_id: O1}
+  - {at_ms: 31, action: inject_quote, symbol: EURUSD, ask: '1.08500', ask_available: 60000, version: 2, ttl_ms: 60000}
+  - {at_ms: 32, action: inject_fill, order: O1, qty: 60000, price: '1.08500'}
+  - {at_ms: 35, action: finalize_cancel, request: C1}
+assert:
+  - 'CumQty(O1) == 100000'
+  - 'LeavesQty(O1) == 0'
+  - 'OrdStatus(O1) == FILLED'
+  - 'count_distinct_fills(O1) == 2'
+  - 'session_and_business_invariants_hold == true'

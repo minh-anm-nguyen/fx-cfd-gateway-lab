@@ -1,0 +1,25 @@
+# Golden canonical encoding, design doc section 21's fixtures/canonical_events.
+#
+# This file exists so that a change to the canonical codec or to the hash
+# chain cannot pass review unnoticed. Every committed event ever written
+# was hashed with these rules; if the encoding moves, every historical
+# state_hash stops verifying and replay fails across the whole journal.
+#
+# If a change here is deliberate, it is a schema migration with an upcaster
+# and a new reducer version (JI-37), not an edit to this file.
+#
+# Format: one KEY<TAB>VALUE line per field; comments start with '#'.
+#
+# ENCODING   the canonical envelope bytes for the event described below
+# CANONICAL  sha256 of ENCODING, which is the canonical_hash column
+# CHAIN      chain_step(zero, hex(CANONICAL) + hex(sha256("state")),
+#                       "ord:O1", 1, "p03.v1")
+#            A fixed synthetic state digest is used so the value depends
+#            only on the chaining rule, not on the order reducer.
+#
+# The event: tenant t1, stream ord:O1, version 1, an OrderAccepted for
+# 100000 EURUSD BUY at 10000 under command K1 in risk domain D1.
+
+ENCODING	{"event_id":"ev-0001","event_type":"OrderAccepted","payload":{"account":"A1","chain":"O1","cl_ord_id":"K1-cl","command_id":"K1","limit_px":10000,"order_qty":100000,"risk_domain":"D1","side":"BUY","symbol":"EURUSD"},"policy_version":1,"reducer_version":"p03.v1","schema_version":1,"stream":"ord:O1","tenant":"t1","version":1}
+CANONICAL	c003eb2589244de5a6953661ed452d05dec75e6c1efd44e7a28f4eee98c73008
+CHAIN	4c16f7d225e2a4efd363cb1831e1a5c09b6f41fd06aa4f731bce0cfd0c4aaeb8

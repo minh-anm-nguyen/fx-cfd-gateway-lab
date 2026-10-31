@@ -1,0 +1,4 @@
+# Pending Cancel. Not terminal, and not a cancellation
+# SOH is shown below as a vertical bar. The .bin beside this file
+# holds the same fields with real 0x01 separators.
+35=8|37=LP-1|17=EXPC-C-2|150=6|39=6|11=C-2|41=O-1|1=ACC1|55=EUR/USD|54=1|38=100000|14=0|151=100000|6=0.00000|

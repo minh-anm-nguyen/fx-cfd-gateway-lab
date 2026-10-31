@@ -1,0 +1,9 @@
+# H-14: a fill exhausts the quantity while a cancel is still pending.
+policy strict_v1
+new O1 qty=100000 px=1.08500
+dispatch O1
+ack O1
+cancel C1 orig=O1
+report pending_cancel C1
+fill X1 cl=O1 qty=100000 px=1.08490 cum=100000 leaves=0 status=6
+assert lifecycle=FILLED cum=100000 leaves=0 fills=1 pending=C1 reconcile=yes violations=0

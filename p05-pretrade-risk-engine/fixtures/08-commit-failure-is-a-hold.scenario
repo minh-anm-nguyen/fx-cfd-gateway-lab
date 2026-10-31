@@ -1,0 +1,28 @@
+# G08 / G13 — a failed commit is a hold with no side effects, and a lost
+# acknowledgement is durable.
+scenario_id RISK-G13-COMMIT-FAULTS
+seed 1008
+fixture F0_EMPTY
+store journal
+
+# CW-10: the outbox row is staged, then the transaction fails.
+step failpoint name=CW-10 action=commit_fail
+step reserve_new account=ACC-A chain=c1 symbol=EURUSD side=BUY qty=50000 price=110000 command_id=n1 expect=HOLD_RETRYABLE
+step assert account=ACC-A symbol=EURUSD effective_buy_remaining=0 outbox_count=0
+step disarm_failpoints
+
+# Retrying the same command id now succeeds exactly once.
+step reserve_new account=ACC-A chain=c1 symbol=EURUSD side=BUY qty=50000 price=110000 command_id=n1 expect=ALLOW_COMMITTED
+step assert account=ACC-A symbol=EURUSD effective_buy_remaining=50000 outbox_count=1
+
+# CW-12: durable, but the acknowledgement is lost.
+step failpoint name=CW-12 action=commit_ack_lost
+step reserve_new account=ACC-A chain=c2 symbol=EURUSD side=BUY qty=20000 price=110000 command_id=n2 expect=HOLD_RETRYABLE reason=PERSISTENCE_COMMIT_UNKNOWN
+step disarm_failpoints
+step assert account=ACC-A symbol=EURUSD effective_buy_remaining=70000 outbox_count=2
+
+# Recovery by command id returns the original decision, not a second hold.
+step reserve_new account=ACC-A chain=c2 symbol=EURUSD side=BUY qty=20000 price=110000 command_id=n2 expect=ALLOW_COMMITTED
+step assert account=ACC-A symbol=EURUSD effective_buy_remaining=70000 outbox_count=2
+step restart
+step assert account=ACC-A symbol=EURUSD effective_buy_remaining=70000 outbox_count=2 all_risk_invariants=true

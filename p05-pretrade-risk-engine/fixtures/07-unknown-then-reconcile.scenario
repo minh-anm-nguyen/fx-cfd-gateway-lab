@@ -1,0 +1,31 @@
+# G14 — an unknown outcome survives a restart and only evidence ends it.
+scenario_id RISK-G14-UNKNOWN-RECONCILE
+seed 1007
+fixture F0_EMPTY
+store journal
+
+step reserve_new account=ACC-A chain=c1 symbol=EURUSD side=BUY qty=50000 price=110000 command_id=n1 expect=ALLOW_COMMITTED
+step dispatch command_id=n1
+
+# The send is ambiguous: no acknowledgement ever arrives.
+step event kind=UnknownOutcome account=ACC-A chain=c1 event_id=unk-1 namespace=recon expect=HOLD_RETRYABLE
+step assert chain=c1 account=ACC-A reservation_state=UNKNOWN
+step assert account=ACC-A symbol=EURUSD effective_buy_remaining=50000
+
+# RI-26: neither time nor a restart releases it.
+step advance_ms 90000
+step publish_market
+step assert account=ACC-A symbol=EURUSD effective_buy_remaining=50000
+step restart
+step assert account=ACC-A symbol=EURUSD effective_buy_remaining=50000
+step assert chain=c1 account=ACC-A reservation_state=UNKNOWN
+
+# Recovery left the domain in RECON_ONLY, so nothing new is admitted.
+step assert mode=RECON_ONLY
+step publish_market
+step reserve_new account=ACC-A chain=c2 symbol=EURUSD side=BUY qty=1000 price=110000 command_id=n2 expect=DENY_DEFINITIVE reason=KILL_SWITCH_RECON_ONLY
+
+# Audited reconciliation: the LP filled 30k and then cancelled the rest.
+step reconcile account=ACC-A chain=c1 evidence_id=ev-1 state=FINAL cum=30000 accepted=50000 expect=ALLOW_COMMITTED
+step assert account=ACC-A symbol=EURUSD effective_buy_remaining=0 position=30000
+step assert chain=c1 account=ACC-A reservation_state=FINAL all_risk_invariants=true

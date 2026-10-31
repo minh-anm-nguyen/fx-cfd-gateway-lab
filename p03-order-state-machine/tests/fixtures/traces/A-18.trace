@@ -1,0 +1,6 @@
+# A-18: a lost New acknowledgement becomes an unknown outcome.
+policy strict_v1
+new O1 qty=100000 px=1.08500
+dispatch O1
+timeout O1
+assert lifecycle=RECONCILIATION_REQUIRED cum=0 fills=0 versions=0 reconcile=yes violations=0

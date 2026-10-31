@@ -1,0 +1,12 @@
+# J-01: cancel intent, fill, pending cancel, final cancel.
+# From the scenario DSL in design doc 20.4.
+policy strict_v1
+new O1 qty=100000 px=1.08500
+dispatch O1
+ack O1
+fill X1 cl=O1 qty=20000 px=1.08490 cum=20000
+cancel C1 orig=O1
+report pending_cancel C1
+fill X2 cl=O1 qty=30000 px=1.08495 cum=50000 status=6
+report canceled C1 cum=50000
+assert lifecycle=CANCELED cum=50000 leaves=0 fills=2 pending=none violations=0

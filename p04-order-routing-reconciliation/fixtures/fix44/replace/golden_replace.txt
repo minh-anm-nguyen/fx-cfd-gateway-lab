@@ -1,0 +1,4 @@
+# OrderCancelReplaceRequest: 38 is the whole intended size, never LeavesQty
+# SOH is shown below as a vertical bar. The .bin beside this file
+# holds the same fields with real 0x01 separators.
+35=G|41=O-1|11=R-2|1=ACC1|55=EUR/USD|54=1|60=20261030-08:00:00.000|38=80000|40=2|44=1.08490|59=0|

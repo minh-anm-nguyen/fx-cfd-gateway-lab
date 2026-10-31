@@ -1,0 +1,31 @@
+# New -> partial fill -> final fill (design doc 9.1, cases E-01 to E-03).
+scenario_id: lp-happy-path-v1
+seed: 20261030
+clock: virtual
+fill_trigger_policy: scripted
+initial_quote:
+  symbol: EURUSD
+  bid: '1.08480'
+  ask: '1.08490'
+  bid_available: 80000
+  ask_available: 40000
+  version: 1
+  ttl_ms: 60000
+events:
+  - {at_ms: 0, action: expect_logon}
+  - {at_ms: 10, action: expect_new, cl_ord_id: O1, qty: 100000, side: BUY, limit: '1.08500'}
+  - {at_ms: 11, action: assert, assert: 'CumQty(O1) == 0'}
+  - {at_ms: 12, action: assert, assert: 'LeavesQty(O1) == 100000'}
+  - {at_ms: 20, action: inject_fill, order: O1, qty: 40000, price: '1.08490'}
+  - {at_ms: 21, action: assert, assert: 'OrdStatus(O1) == PARTIALLY_FILLED'}
+  # Only an explicit new quote creates capacity again (D-17).
+  - {at_ms: 30, action: inject_quote, symbol: EURUSD, ask: '1.08500', ask_available: 60000, version: 2, ttl_ms: 60000}
+  - {at_ms: 40, action: inject_fill, order: O1, qty: 60000, price: '1.08500'}
+assert:
+  - 'CumQty(O1) == 100000'
+  - 'LeavesQty(O1) == 0'
+  - 'OrdStatus(O1) == FILLED'
+  - 'count_distinct_fills(O1) == 2'
+  # 40000 at 1.08490 plus 60000 at 1.08500 is exactly 1.08496 (design doc 7.4).
+  - 'AvgPx(O1) == 108496'
+  - 'session_and_business_invariants_hold == true'

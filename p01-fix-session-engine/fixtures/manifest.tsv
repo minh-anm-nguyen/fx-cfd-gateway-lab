@@ -1,0 +1,37 @@
+# path	expectation	expected_error	note
+valid/logon.fix	ACCEPT	None	a well formed Logon
+valid/heartbeat.fix	ACCEPT	None	a bare heartbeat
+valid/heartbeat_with_testreqid.fix	ACCEPT	None	a heartbeat answering a TestRequest
+valid/test_request.fix	ACCEPT	None	a TestRequest
+valid/resend_request.fix	ACCEPT	None	a bounded ResendRequest
+valid/resend_request_open_ended.fix	ACCEPT	None	an open ended ResendRequest
+valid/sequence_reset_gapfill.fix	ACCEPT	None	a SequenceReset-GapFill
+valid/logout.fix	ACCEPT	None	a Logout with text
+valid/reject.fix	ACCEPT	None	a session level Reject
+valid/app_message.fix	ACCEPT	None	an application message from the test dictionary
+valid/timestamp_no_fraction.fix	ACCEPT	None	second precision SendingTime
+valid/timestamp_nanoseconds.fix	ACCEPT	None	nanosecond precision SendingTime
+valid/leap_day.fix	ACCEPT	None	a real leap day
+invalid/body_length_short.fix	FRAMING_ERROR	BodyLengthMismatch	BodyLength smaller than the actual body
+invalid/body_length_alpha.fix	FRAMING_ERROR	BadBodyLength	a non numeric BodyLength
+invalid/body_length_overflow.fix	FRAMING_ERROR	BodyLengthOverflow	a twenty digit BodyLength
+invalid/body_length_too_large.fix	FRAMING_ERROR	BodyLengthTooLarge	BodyLength beyond the configured frame cap
+invalid/checksum_wrong.fix	FRAMING_ERROR	CheckSumMismatch	a checksum that does not match
+invalid/checksum_two_digits.fix	FRAMING_ERROR	BadCheckSumFormat	a two digit checksum
+invalid/no_begin_string.fix	FRAMING_ERROR	MissingBeginString	the frame does not start with tag 8
+invalid/pipe_delimiters.fix	FRAMING_ERROR	Incomplete	vertical bars instead of SOH: never a valid frame
+invalid/wrong_version.fix	DECODE_ERROR	BadBeginString	a self consistent FIX.4.2 frame: only the version is wrong
+invalid/missing_seqnum.fix	DECODE_ERROR	MissingRequiredHeader	no MsgSeqNum
+invalid/missing_sending_time.fix	DECODE_ERROR	MissingRequiredHeader	no SendingTime
+invalid/duplicate_seqnum.fix	DECODE_ERROR	DuplicateHeaderTag	MsgSeqNum appears twice
+invalid/msgtype_not_third.fix	DECODE_ERROR	MissingMsgType	MsgType outside the third position
+invalid/bad_timestamp.fix	DECODE_ERROR	BadTimestamp	2027 is not a leap year
+invalid/possdup_without_origsendingtime.fix	DECODE_ERROR	MissingRequiredHeader	PossDupFlag with no OrigSendingTime
+invalid/possdup_not_boolean.fix	DECODE_ERROR	BadFieldValue	PossDupFlag is neither Y nor N
+invalid/zero_seqnum.fix	DECODE_ERROR	BadSeqNum	MsgSeqNum is zero
+invalid/empty_value.fix	DECODE_ERROR	EmptyTagValue	a tag with no value
+invalid/non_ascii_value.fix	DECODE_ERROR	NonPrintableValue	a non ASCII byte in a value
+gap/future_pair.fix	STREAM		two messages ahead of the expected sequence, 101 and 103 missing
+gap/fill_pair.fix	STREAM		the two messages that close the gap above
+retransmission/app_possdup.fix	ACCEPT	None	a retransmission: original sequence, PossDupFlag, OrigSendingTime
+retransmission/gapfill_over_admin.fix	ACCEPT	None	a GapFill covering sequences 11 and 12

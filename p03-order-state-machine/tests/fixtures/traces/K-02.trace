@@ -1,0 +1,8 @@
+# K-02: a trade bust is unsupported in v1 and subtracts nothing.
+policy strict_v1
+new O1 qty=100000 px=1.08500
+dispatch O1
+ack O1
+fill X1 cl=O1 qty=40000 px=1.08490 cum=40000
+report trade_cancel O1 exec=H1 ref=X1
+assert cum=40000 fills=1 quarantined=yes reconcile=yes violations=0

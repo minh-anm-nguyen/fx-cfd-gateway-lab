@@ -1,0 +1,4 @@
+# OrderCancelReject answering an F. Reason 0, order still working
+# SOH is shown below as a vertical bar. The .bin beside this file
+# holds the same fields with real 0x01 separators.
+35=9|37=LP-1|11=C-2|41=O-1|39=0|434=1|102=0|

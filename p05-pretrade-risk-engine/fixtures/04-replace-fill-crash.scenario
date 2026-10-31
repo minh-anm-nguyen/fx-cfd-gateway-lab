@@ -1,0 +1,33 @@
+# G11 — the worked scenario from section 24.5, including the restart.
+#
+# accepted 100k, fill 40k, replace to 150k, fill 20k, restart, replace accepted.
+# The expected numbers come straight from the note under section 23.3:
+# r_old = 40k, r_new = 90k, so the effective hold is 90k -- and the restart in
+# the middle must not change any of it (P-13).
+scenario_id RISK-G11-REPLACE-FILL-CRASH
+seed 92305
+fixture F0_EMPTY
+store journal
+
+step reserve_new account=ACC-A chain=c1 symbol=EURUSD side=BUY qty=100000 price=110000 command_id=new-1 expect=ALLOW_COMMITTED
+step dispatch command_id=new-1
+step event kind=OrderAccepted account=ACC-A chain=c1 event_id=a1 accepted=100000
+
+step lp_fill account=ACC-A chain=c1 event_id=e-1 qty=40000 expect=ALLOW_COMMITTED
+step assert account=ACC-A symbol=EURUSD effective_buy_remaining=60000 position=40000
+
+# RI-06: the worst case of both branches, reserved before the G goes out.
+step reserve_replace account=ACC-A chain=c1 qty=150000 price=110000 command_id=repl-1 expect=ALLOW_COMMITTED
+step assert account=ACC-A symbol=EURUSD effective_buy_remaining=110000
+
+step lp_fill account=ACC-A chain=c1 event_id=e-2 qty=20000 expect=ALLOW_COMMITTED
+step assert account=ACC-A symbol=EURUSD effective_buy_remaining=90000 position=60000
+step assert chain=c1 account=ACC-A confirmed_cum_qty=60000
+
+step restart
+step assert account=ACC-A symbol=EURUSD effective_buy_remaining=90000 position=60000
+step assert chain=c1 account=ACC-A confirmed_cum_qty=60000 all_risk_invariants=true
+
+step event kind=ReplaceAccepted account=ACC-A chain=c1 event_id=ra1 accepted=150000 expect=ALLOW_COMMITTED
+step assert account=ACC-A symbol=EURUSD effective_buy_remaining=90000 position=60000
+step assert chain=c1 account=ACC-A confirmed_cum_qty=60000 outbox_count=2 all_risk_invariants=true

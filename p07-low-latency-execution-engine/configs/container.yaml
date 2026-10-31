@@ -1,0 +1,21 @@
+# Container profile. The allowed CPU set comes from the cgroup cpuset, not from
+# the machine's online set, so the planner works from the intersection
+# (doc 11 step 2). Smaller capacities because a container's memory limit is the
+# binding constraint on the ring and pool budget (doc 9).
+profile: lab-p07-v1-container
+fix_mode: simulator_only
+owner_shards: 1
+spsc_capacity: 1024
+pool_slots: 8192
+owner_cpu: auto_from_allowed_cpuset
+telemetry_buffer_per_thread: 2048
+allocation_policy: preallocated_hot_path
+watermarks: {watch_pct: 55, shed_new_pct: 80, stop_pct: 92}
+durability: p06_atomic_store_required
+outbox_send_requires: p06_committed_epoch
+failure_mode: recon_only_on_unknown_commit
+metrics: {clock: monotonic_raw, full_benchmark_samples: true}
+attempt_pinning: false
+commit_mode: async_worker
+persistence_inflight_budget: 1
+sync_on_commit: true

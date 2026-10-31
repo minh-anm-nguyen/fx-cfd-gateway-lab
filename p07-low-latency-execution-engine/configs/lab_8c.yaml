@@ -1,0 +1,24 @@
+# Lab profile, 8 eligible CPUs. This is the example profile of design doc 20,
+# with the values it gives. Every number here is a lab starting point, not a
+# measured capacity: doc 27.1 is explicit that 8192 ring slots is "a starting
+# lab assumption, validated by bursts and traffic mixes, not guaranteed
+# production sizing".
+profile: lab-p07-v1-8c
+fix_mode: simulator_only
+owner_shards: 1
+spsc_capacity: 8192
+pool_slots: 32768
+owner_cpu: auto_from_allowed_cpuset
+telemetry_buffer_per_thread: 8192
+allocation_policy: preallocated_hot_path
+watermarks: {watch_pct: 60, shed_new_pct: 85, stop_pct: 95}
+durability: p06_atomic_store_required
+outbox_send_requires: p06_committed_epoch
+failure_mode: recon_only_on_unknown_commit
+metrics: {clock: monotonic_raw, full_benchmark_samples: true}
+# Off by default. ADR-07: always-on pinning can conflict with cpuset, SMT, IRQ
+# steering and operations, so it is opted into on a disposable host.
+attempt_pinning: false
+commit_mode: synchronous
+persistence_inflight_budget: 1
+sync_on_commit: true

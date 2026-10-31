@@ -1,0 +1,10 @@
+# B-07: a replace accepted after a partial fill keeps CumQty.
+policy strict_v1
+new O1 qty=100000 px=1.08500
+dispatch O1
+ack O1
+fill X1 cl=O1 qty=40000 px=1.08490 cum=40000 leaves=60000
+replace R1 orig=O1 qty=120000
+report pending_replace R1
+report replaced R1 orig=O1 qty=120000 cum=40000
+assert lifecycle=PART_FILLED accepted=R1 qty=120000 cum=40000 leaves=80000 versions=2 violations=0

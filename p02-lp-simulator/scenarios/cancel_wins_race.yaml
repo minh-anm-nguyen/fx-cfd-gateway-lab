@@ -1,0 +1,32 @@
+# PB-06 PASS B: the SAME timeline with the finalisation moved before the second
+# fill. The cancel wins, the scheduled fill is invalidated, and CumQty stays at
+# 40000. Running both files is what makes the race outcome a decision rather
+# than an accident (design doc 11.3).
+scenario_id: lp-cancel-wins-race-v1
+seed: 20261030
+clock: virtual
+fill_trigger_policy: scripted
+emit_pending_cancel: true
+initial_quote:
+  symbol: EURUSD
+  bid: '1.08480'
+  ask: '1.08490'
+  bid_available: 80000
+  ask_available: 40000
+  version: 1
+  ttl_ms: 60000
+events:
+  - {at_ms: 0, action: expect_logon}
+  - {at_ms: 10, action: expect_new, cl_ord_id: O1, qty: 100000, side: BUY, limit: '1.08500'}
+  - {at_ms: 20, action: inject_fill, order: O1, qty: 40000, price: '1.08490'}
+  - {at_ms: 30, action: expect_cancel, cl_ord_id: C1, orig_cl_ord_id: O1}
+  - {at_ms: 31, action: inject_quote, symbol: EURUSD, ask: '1.08495', ask_available: 20000, version: 2, ttl_ms: 60000}
+  - {at_ms: 32, action: finalize_cancel, request: C1}
+  # The order is terminal by now, so this fill must be refused (E-10, F-11).
+  - {at_ms: 35, action: inject_fill, order: O1, qty: 20000, price: '1.08495', expect_reject: true}
+assert:
+  - 'CumQty(O1) == 40000'
+  - 'LeavesQty(O1) == 0'
+  - 'OrdStatus(O1) == CANCELED'
+  - 'count_distinct_fills(O1) == 1'
+  - 'session_and_business_invariants_hold == true'
